@@ -17,12 +17,41 @@ let anotacoes =
     humor: '2/10'
 }]
 
+
 app.get('/teste', (req, res) => {
     res.json({message: 'testando', data:Date.now()});
 });
 
 app.get('/anotacoes', (req, res) => {
-    res.json({dados: anotacoes, data:Date.now()});
+    const {humor, data, busca, page = 1, limit = 2} = req.query
+    const pagina = Number(page)
+    const limite = Number(limit)
+
+    let resultado = anotacoes
+    if (busca){
+        resultado = resultado.filter(anotacao => 
+        anotacao.corpo.toLowerCase().includes(busca.toLowerCase())
+    )}
+    if (humor){
+        resultado = resultado.filter(anotacao => anotacao.humor === humor)
+    }
+    if (data) {
+        resultado = resultado.filter(anotacao => anotacao.data === data)
+    }
+    const inicio = (pagina - 1) * limite
+    const fim = inicio + limite
+
+    const total = resultado.length;
+
+    resultado = resultado.slice(inicio, fim)
+
+    res.json({
+    dados: resultado,
+    total,
+    pagina: pagina,
+    limite: limite,
+    data: Date.now()
+});
 })
 
 app.get('/anotacoes/:id', (req, res) => {
