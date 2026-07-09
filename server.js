@@ -1,28 +1,37 @@
-import express from 'express';
+import app from './src/app.js';
+import logger from './src/middleware/logger.js';
+import anotacoes from './dados/anotações.js';
+import usuarios from './dados/usuarios.js';
+import autenticar from './src/middleware/autenticar.js';
 
-const app = express();
-app.use(express.json())
+
 const PORT = 3000;
 
-let anotacoes = 
-[{
-    id: Date.now(),
-    data: '24/07',
-    corpo: 'hoje me senti feliz',
-    humor: '8/10'
-    }, {
-    id: Date.now()+1,
-    data: '25/07',
-    corpo: 'hoje me senti triste',
-    humor: '2/10'
-}]
 
+
+app.use(logger)
+app.post('/login', (req, res) => {
+    const {nome, senha} = req.body
+    if (!nome || !senha){
+        return res.status(400).json({'message': 'nao foi possivel autenticar. Um ou mais dados estao invalidos', data:Date.now()})
+    }
+    const usuarioEncontrado = usuarios.find(usuario => usuario.nome === nome && usuario.senha === senha)
+    if (!usuarioEncontrado){
+        return res.status(401).json({'message': 'nao foi possivel autenticar. nome ou senha estao incorretos.', data:Date.now()})
+    }
+    res.status(200).json({
+        'message': 'autenticação concluída.',
+        'usuario': usuarioEncontrado.nome, 
+        'token': usuarioEncontrado.token,
+        data:Date.now()
+    })
+})
 
 app.get('/teste', (req, res) => {
     res.json({message: 'testando', data:Date.now()});
 });
 
-app.get('/anotacoes', (req, res) => {
+app.get('/anotacoes', autenticar, (req, res) => {
     const {humor, data, busca, page = 1, limit = 2} = req.query
     const pagina = Number(page)
     const limite = Number(limit)
@@ -44,7 +53,7 @@ app.get('/anotacoes', (req, res) => {
     const total = resultado.length;
 
     resultado = resultado.slice(inicio, fim)
-
+    console.log(req.usuario)
     res.json({
     dados: resultado,
     total,
@@ -54,7 +63,7 @@ app.get('/anotacoes', (req, res) => {
 });
 })
 
-app.get('/anotacoes/:id', (req, res) => {
+app.get('/anotacoes/:id', autenticar, (req, res) => {
     const id = req.params.id
     const anotacaoEncontrada = anotacoes.find(anotacao => anotacao.id === Number(id))
     if (!anotacaoEncontrada) {
@@ -63,7 +72,7 @@ app.get('/anotacoes/:id', (req, res) => {
     res.status(200).json({dados: anotacaoEncontrada, data:Date.now()})
 })
 
-app.post('/anotacoes', (req, res) => {
+app.post('/anotacoes', autenticar, (req, res) => {
     const novaAnotacao = req.body
     if (!novaAnotacao.data
         ||!novaAnotacao.corpo) {
@@ -81,7 +90,7 @@ app.post('/anotacoes', (req, res) => {
     res.status(201).json({message: 'adicionado com sucesso', data:Date.now()})
 })
 
-app.put('/anotacoes/:id', (req, res) => {
+app.put('/anotacoes/:id', autenticar, (req, res) => {
     const id = req.params.id
     const anotacaoEncontrada = anotacoes.find(anotacao => anotacao.id === Number(id))
     if (!anotacaoEncontrada) {
@@ -96,7 +105,7 @@ app.put('/anotacoes/:id', (req, res) => {
     res.json({message: 'atualizado com sucesso', data:Date.now()})
 })
 
-app.delete('/anotacoes/:id', (req, res) => {
+app.delete('/anotacoes/:id', autenticar, (req, res) => {
     const id = req.params.id
     const idEncontrado = anotacoes.findIndex(anotacao => anotacao.id === Number(id))
     if (idEncontrado === -1) {
