@@ -1,25 +1,37 @@
-import usuarios from "../../dados/usuarios.js"
+import pool from "../../database.js";
 
-function autenticar(req, res, next) {
+async function autenticar(req, res, next) {
 
-    const { nome } = req.query
-    const authorization = req.headers.authorization
+    const { nome } = req.query;
+    const authorization = req.headers.authorization;
 
     if (!authorization) {
-        return res.status(401).json({message: "Token não enviado", data: Date.now()});
+        return res.status(401).json({
+            message: "Token não enviado."
+        });
     }
 
     const token = authorization.split(" ")[1];
 
-    const usuarioEncontrado = usuarios.find(
-        usuario => usuario.nome === nome && usuario.token == token)
+    const resultado = await pool.query(
+        `
+        SELECT *
+        FROM usuarios
+        WHERE nome ILIKE $1
+        AND token = $2
+        `,
+        [nome, token]
+    );
 
-    if (!usuarioEncontrado) {
-        return res.status(401).json({message: "Não autenticado.", data: Date.now()})
+    if (resultado.rows.length === 0) {
+        return res.status(401).json({
+            message: "Não autenticado."
+        });
     }
 
-    req.usuario = usuarioEncontrado
+    req.usuario = resultado.rows[0];
 
-    next()
+    next();
 }
-export default autenticar
+
+export default autenticar;
