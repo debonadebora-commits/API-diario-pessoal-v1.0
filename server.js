@@ -9,7 +9,6 @@ dotenv.config()
 
 
 const PORT = process.env.PORT||3000;
-
 try {
     await pool.query("SELECT NOW()");
     console.log("✅ Banco conectado!");
