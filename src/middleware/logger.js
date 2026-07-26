@@ -8,7 +8,7 @@ function logger(req, res, next)
     res.on('finish', () => {
         const tempo = Date.now() - inicio
         const status = res.statusCode
-        const usuario = req.usuario.id ?? 'anonimo'
+        const usuario = req.usuario?.id ?? 'anonimo'
     
         console.log(`
         [${new Date().toLocaleString()}]#${contador} 

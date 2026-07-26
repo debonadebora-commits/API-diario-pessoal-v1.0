@@ -1,11 +1,8 @@
 import jwt from "jsonwebtoken";
 import dotenv from 'dotenv'
 
-dotenv.config()
-
 
 function autenticar(req, res, next) {
-
     const authorization = req.headers.authorization;
 
     if (!authorization) {
