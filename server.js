@@ -3,9 +3,14 @@ import logger from './src/middleware/logger.js';
 // import anotacoes from './dados/anotações.js';
 // import usuarios from './dados/usuarios.js';
 import autenticar from './src/middleware/autenticar.js';
-import pool from './database.js';
+import pool from './src/database.js';
+import dotenv from 'dotenv'
+import jwt from 'jsonwebtoken'
+import bcrypt from 'bcrypt'
 
-const PORT = 3000;
+dotenv.config()
+
+const PORT = process.env.PORT;
 
 try {
     await pool.query("SELECT NOW()");
@@ -15,33 +20,92 @@ try {
 }
 
 app.use(logger)
+
+
+app.post('/cadastrar', async (req, res) => {
+
+    const { nome, senha } = req.body;
+    const senhaHash = await bcrypt.hash(
+        senha,
+        10
+    );
+
+    await pool.query(
+    `
+        INSERT INTO usuarios(nome, senha)
+        VALUES($1, $2)
+    `,
+    [
+        nome,
+        senhaHash
+    ])
+
+    res.status(201).json({message:'criado com sucesso', data: Date.now()})
+})
+
 app.post('/login', async (req, res) => {
-    const {nome, senha} = req.body
-    if (!nome || !senha){
-        return res.status(400).json({'message': 'nao foi possivel autenticar. Um ou mais dados estao invalidos', data:Date.now()})
+
+    const { nome, senha } = req.body
+    // valida se veio tudo
+    if (!nome || !senha) {
+        return res.status(400).json({
+            message: "não foi possível autenticar. Dados inválidos.",
+            data: Date.now()
+        });
     }
+
+    // procura usuário pelo nome
     const usuarioEncontrado = await pool.query(
         `
-        SELECT * FROM usuarios
-        WHERE nome = $1 
-        AND senha = $2
+        SELECT *
+        FROM usuarios
+        WHERE nome = $1
         `,
-        [nome,senha]
-    )
+        [nome]
+    );
 
-    const dados = usuarioEncontrado.rows[0]
-    
-    if (usuarioEncontrado.rows.length === 0){
-        return res.status(401).json({'message': 'nao foi possivel autenticar. nome ou senha estao incorretos.', data:Date.now()})
+    if (usuarioEncontrado.rows.length === 0) {
+        return res.status(401).json({
+            message: "nome ou senha incorretos.",
+            data: Date.now()
+        });
     }
 
+    const usuario = usuarioEncontrado.rows[0];
+
+    const senhaCorreta = await bcrypt.compare(
+        senha,
+        usuario.senha
+    );
+
+
+    if (!senhaCorreta) {
+        return res.status(401).json({
+            message: "nome ou senha incorretos.",
+            data: Date.now()
+        });
+    }
+
+    const token = jwt.sign(
+        {
+            id: usuario.id,
+            nome: usuario.nome
+        },
+        process.env.JWT_SECRET,
+        {
+            expiresIn: "7d"
+        }
+    );
+
+
     res.status(200).json({
-        'message': 'autenticação concluída.',
-        'usuario': dados.nome, 
-        'token': dados.token,
-        data:Date.now()
-    })
-})
+        message: "autenticação concluída.",
+        usuario: usuario.nome,
+        token,
+        data: Date.now()
+    });
+
+});
 
 app.get('/teste', (req, res) => {
     res.json({message: 'testando', data:Date.now()});
@@ -62,7 +126,6 @@ app.get('/anotacoes', autenticar, async (req, res) => {
         const offset = (pagina - 1) * limite;
         const usuarioId = req.usuario.id
 
-        // Aqui vamos guardar apenas os filtros
         let where = "WHERE 1=1";
         const valores = [];
 
@@ -86,15 +149,12 @@ app.get('/anotacoes', autenticar, async (req, res) => {
         where += ` AND entradas.usuario_id = $${valores.length}`;
 
         
-
-
-        // Consulta que busca os dados
         const sqlDados = `
             SELECT 
             entradas.id,
             entradas.corpo,
             entradas.humor,
-            entradas.data_cadastro,
+            entradas.data_entrada,
             entradas.usuario_id,
             usuarios.nome
             FROM entradas
@@ -111,7 +171,6 @@ app.get('/anotacoes', autenticar, async (req, res) => {
             offset
         ];
 
-        // Consulta que conta quantos registros existem
         const sqlTotal = `
             SELECT COUNT(*) AS total
         FROM entradas
@@ -119,7 +178,6 @@ app.get('/anotacoes', autenticar, async (req, res) => {
         ${where}
         `;
 
-        // Executa as duas consultas ao mesmo tempo
         const [dados, total] = await Promise.all([
             pool.query(sqlDados, valoresDados),
             pool.query(sqlTotal, valores)
@@ -180,7 +238,7 @@ app.post('/anotacoes', autenticar, async (req, res) => {
     }
     const anotacao = await pool.query(
         `
-        INSERT INTO entradas (data_cadastro, corpo, humor, usuario_id)
+        INSERT INTO entradas (data_entrada, corpo, humor, usuario_id)
         VALUES ($1,$2,$3,$4)
         `,
         [novaAnotacao.data,novaAnotacao.corpo,novaAnotacao.humor,usuarioId]
@@ -210,14 +268,14 @@ app.patch('/anotacoes/:id', autenticar, async (req, res) => {
         `
         UPDATE entradas
         SET 
-            data_cadastro = $1,
+            data_entrada = $1,
             corpo = $2,
             humor = $3
         WHERE id = $4
         AND usuario_id = $5
         `,
         [
-            req.body.data ?? dados.data_cadastro,
+            req.body.data ?? dados.data_entrada,
             req.body.corpo ?? dados.corpo,
             req.body.humor ?? dados.humor,
             id,

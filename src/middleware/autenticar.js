@@ -1,8 +1,11 @@
-import pool from "../../database.js";
+import jwt from "jsonwebtoken";
+import dotenv from 'dotenv'
 
-async function autenticar(req, res, next) {
+dotenv.config()
 
-    const { nome } = req.query;
+
+function autenticar(req, res, next) {
+
     const authorization = req.headers.authorization;
 
     if (!authorization) {
@@ -12,26 +15,23 @@ async function autenticar(req, res, next) {
     }
 
     const token = authorization.split(" ")[1];
+    try {
 
-    const resultado = await pool.query(
-        `
-        SELECT *
-        FROM usuarios
-        WHERE nome ILIKE $1
-        AND token = $2
-        `,
-        [nome, token]
-    );
+        const usuario = jwt.verify(
+            token,
+            process.env.JWT_SECRET
+        );
 
-    if (resultado.rows.length === 0) {
+        req.usuario = usuario;
+        next();
+
+    } catch (erro) {
+
         return res.status(401).json({
-            message: "Não autenticado."
+            message: "Token inválido ou expirado."
         });
     }
-
-    req.usuario = resultado.rows[0];
-
-    next();
 }
+
 
 export default autenticar;
