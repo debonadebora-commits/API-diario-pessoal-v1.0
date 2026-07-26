@@ -84,7 +84,7 @@ http://localhost:3000
 
 | Método | Endpoint    | Descrição           |
 | ------ | ----------- | ------------------- |
-| POST   | `/usuarios` | Cadastro de usuário |
+| POST   | `/cadastrar`| Cadastro de usuário |
 | POST   | `/login`    | Login               |
 
 ### Anotações
@@ -94,7 +94,7 @@ http://localhost:3000
 | GET    | `/anotacoes`     |
 | GET    | `/anotacoes/:id` |
 | POST   | `/anotacoes`     |
-| PUT    | `/anotacoes/:id` |
+| PATCH  | `/anotacoes/:id` |
 | DELETE | `/anotacoes/:id` |
 
 > As rotas de anotações exigem autenticação via JWT.
