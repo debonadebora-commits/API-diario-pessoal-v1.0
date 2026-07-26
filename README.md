@@ -26,8 +26,11 @@ Uma API REST desenvolvida para gerenciamento de anotações pessoais, permitindo
 
 ```text
 src/
+├── controllers/
 ├── middleware/
+├── repository/
 ├── routes/
+├── services/
 ├── database.js
 └── app.js
 
