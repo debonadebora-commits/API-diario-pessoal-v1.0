@@ -15,7 +15,6 @@ export async function acessarAnotacoes(req, res) {
         res.status(500).json({
             erro: "Erro ao buscar anotações."
         });
-    
     };
 }
 
